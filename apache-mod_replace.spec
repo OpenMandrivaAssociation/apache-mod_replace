@@ -6,7 +6,7 @@
 Summary:	Replace text strings based on regular expressions
 Name:		apache-%{mod_name}
 Version:	0.1.0
-Release:	%mkrel 10
+Release:	%mkrel 11
 Group:		System/Servers
 License:	BSD
 URL:		http://mod-replace.sourceforge.net/
