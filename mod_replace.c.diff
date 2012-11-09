@@ -1,0 +1,187 @@
+#######################################################################
+# patch against mod_replace-0.1.0 to get the beast compiled for Win32 #
+# by G. Knauf <gknauf@users.sourceforge.net>                          #
+#######################################################################
+--- mod_replace.c.orig	Sat Apr 17 22:30:30 2004
++++ mod_replace.c	Wed Jan 26 19:55:02 2005
+@@ -36,21 +36,25 @@
+  * It works well with the mod_cache and mod_proxy modules.
+  */
+ 
+-#include "httpd.h"
+-#include "http_config.h"
+-#include "http_log.h"
+-#include "http_protocol.h"
+-#include "http_core.h"
+-#include "apr_buckets.h"
+-#include "util_filter.h"
+-#include "apr_strings.h"
+-#include "apr_hash.h"
+-#include "apr_lib.h"
+ /** Since we want to use string functions, we have to set this. */
+ #define APR_WANT_STRFUNC
+ #include "apr_want.h"
++#include "apr_strings.h"
+ #include "apr_tables.h"
+-#include "../../srclib/pcre/pcre.h"
++#include "apr_buckets.h"
++#include "apr_hash.h"
++#include "apr_hooks.h"
++#include "apr_lib.h"
++#include "apr_file_io.h"
++#include "util_filter.h"
++#include "pcre.h"
++
++#include "httpd.h"
++#include "http_config.h"
++#include "http_core.h"
++#include "http_log.h"
++#include "http_protocol.h"
++#include "http_request.h"
+ 
+ /**
+  * @file mod_replace.c
+@@ -280,14 +284,10 @@
+                             // the pattern to add
+     replace_pattern_t *previous;
+                             // the previous pattern, if any
+-    replace_pattern_t backup;                            
+     pcre *re;               // the regular expression
+     pcre_extra *pe;         // data from studying the pattern
+     const char *error;      // error text for the failed regex compilation
+     int error_offset;       // offset of the regex compilation error, if any
+-    int rc;                 // return count of the regex matching
+-    int i;                  // counter
+-    int rv;                 // return value for generic function calls
+     int flags = 0;          // the flags for the regex matching
+ 
+     /* Get the configuration record and add the regex and replacement pattern.
+@@ -397,14 +397,10 @@
+                             // the pattern to add
+     header_replace_pattern_t *previous;
+                             // the previous pattern, if any
+-    header_replace_pattern_t backup;                            
+     pcre *re;               // the regular expression
+     pcre_extra *pe;         // data from studying the pattern
+     const char *error;      // error text for the failed regex compilation
+     int error_offset;       // offset of the regex compilation error, if any
+-    int rc;                 // return count of the regex matching
+-    int i;                  // counter
+-    int rv;                 // return value for generic function calls
+     int flags = 0;          // the flags for the regex matching
+ 
+     /* Get the configuration record */
+@@ -552,14 +548,10 @@
+                             // the pattern to add
+     header_replace_pattern_t *previous;
+                             // the previous pattern, if any
+-    header_replace_pattern_t backup;
+     pcre *re;               // the regular expression
+     pcre_extra *pe;         // data from studying the pattern
+     const char *error;      // error text for the failed regex compilation
+     int error_offset;       // offset of the regex compilation error, if any
+-    int rc;                 // return count of the regex matching
+-    int i;                  // counter
+-    int rv;                 // return value for generic function calls
+     int flags = 0;          // the flags for the regex matching
+ 
+     conf = ap_get_module_config(cmd->server->module_config, &replace_module);
+@@ -907,8 +899,7 @@
+  */
+ static int replace_header_cb(void *v, const char *key, const char *val)
+ {
+-    header_replace_cb_t *data;
+-    data = (header_replace_cb_t *) v;
++    header_replace_cb_t *data = (header_replace_cb_t *) v;
+     // do replacement and finally add the new value to the table
+     int len = strlen(val);
+     int rc = 0;
+@@ -977,13 +968,14 @@
+     apr_bucket *b;
+     apr_size_t len;
+     const char *data;
+-    const char *header;
+     apr_status_t rv;
+     int re_vector[RE_VECTOR_SIZE];  // 3 elements per matched pattern
+     replace_pattern_t *next;
+     header_replace_pattern_t *next_header;
+-    int modified = 0;               // flag to determine if a replacement has
+-                                    // occured.
++    int modified = 0;               // flag to determine if a replacement has occured.
++    int eos = 0;                    // flag to check if an EOS bucket is in the brigade.
++    apr_bucket *eos_bucket;         // Backup for the EOS bucket.
++    apr_bucket *bkt;
+ 
+     if (!ctx) {
+         /* Initialize context */
+@@ -1037,9 +1029,9 @@
+         // create a separate table with the requested HTTP header entries and
+         // unset those headers in the original request.
+         apr_table_t *header_table;
++    	header_replace_cb_t *hrcb;
+         header_table = apr_table_make(r->pool, 2);
+     	// create a data structure for the callback function
+-    	header_replace_cb_t *hrcb;
+     	hrcb = apr_palloc(r->pool, sizeof(header_replace_cb_t));
+     	hrcb->header_table = header_table;
+ 	    hrcb->pattern = next_header->pattern;
+@@ -1065,10 +1057,6 @@
+      */
+     apr_table_unset(f->r->headers_out, "ETag"); 
+ 
+-    int eos = 0;        // flag to check if an EOS bucket is in the brigade.
+-    apr_bucket *eos_bucket;
+-                        // Backup for the EOS bucket.
+-
+     /* Interate through the available data. Stop if there is an EOS */
+     APR_BRIGADE_FOREACH(b, bb) {
+ 
+@@ -1161,6 +1149,7 @@
+                     /* look for the subpatterns \0 to \9 */
+ 
+                     for (x = 0; x < rc && x < 10; x++) {
++                        char *token, *tmp;
+                         /* extract the x'ths subpattern */
+                         to_replace[x] = substr(data, re_vector[x*2],
+                                                re_vector[x*2+1] -
+@@ -1170,10 +1159,9 @@
+                                       "Found match: %s", to_replace[x]);
+                         
+                         /* the token ( \0 to \9) we are looking for */
+-                        char *token = apr_pstrcat(ctx->p, "\\",
++                        token = apr_pstrcat(ctx->p, "\\",
+                                                 apr_itoa(ctx->p, x), NULL);
+                         /* allocate memory for the replacement operation */
+-                        char *tmp;
+                         if (!to_replace[x] || strlen(to_replace[x]) < 2) {
+                             tmp = malloc(strlen(replacement) + 1);
+                         } else {
+@@ -1220,8 +1208,7 @@
+                     prefix = apr_pcalloc(ctx->p, re_vector[0] + 1);
+                     if (prefix == NULL) {
+                         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-                            "Unable to allocate memory for prefix",
+-                            NULL);
++                            "Unable to allocate memory for prefix");
+                         return -1;
+                     }
+ 
+@@ -1237,8 +1224,7 @@
+                     postfix = apr_pcalloc(ctx->p, len);
+                     if (postfix == NULL) {
+                         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+-                            "Unable to allocate memory for postfix",
+-                            NULL);
++                            "Unable to allocate memory for postfix");
+                         return -1;
+                     }
+                     
+@@ -1282,7 +1268,7 @@
+      * brigade, then insert the saved EOS bucket at the end of the brigade
+      * and pass the brigade to the next filter.
+      */
+-    apr_bucket *bkt = apr_bucket_transient_create(data, len,
++    bkt = apr_bucket_transient_create(data, len,
+         apr_bucket_alloc_create(ctx->p));
+     APR_BRIGADE_INSERT_TAIL(ctx->bb, bkt);
+     APR_BRIGADE_INSERT_TAIL(ctx->bb, eos_bucket);

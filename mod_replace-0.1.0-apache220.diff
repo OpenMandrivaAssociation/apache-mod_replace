@@ -1,0 +1,13 @@
+--- mod_replace.c	2005-12-21 04:06:08.000000000 +0100
++++ mod_replace.c.oden	2005-12-21 04:04:34.000000000 +0100
+@@ -1058,7 +1058,9 @@
+     apr_table_unset(f->r->headers_out, "ETag"); 
+ 
+     /* Interate through the available data. Stop if there is an EOS */
+-    APR_BRIGADE_FOREACH(b, bb) {
++    for (b = APR_BRIGADE_FIRST(bb);
++         b != APR_BRIGADE_SENTINEL(bb);
++         b = APR_BUCKET_NEXT(b)) {
+ 
+         if (APR_BUCKET_IS_EOS(b)) {
+             eos = 1;
