@@ -6,7 +6,7 @@
 Summary:	Replace text strings based on regular expressions
 Name:		apache-%{mod_name}
 Version:	0.1.0
-Release:	%mkrel 14
+Release:	14
 Group:		System/Servers
 License:	BSD
 URL:		http://mod-replace.sourceforge.net/
@@ -25,7 +25,6 @@ Requires:       apache-conf >= 2.2.0
 Requires:       apache >= 2.2.0
 BuildRequires:  apache-devel >= 2.2.0
 BuildRequires:	file
-BuildRoot:	%{_tmppath}/%{name}-%{version}-%{release}-buildroot
 
 %description
 mod_replace is an Apache 2.0.x filter module that allows you to
@@ -55,10 +54,9 @@ find . -type f|xargs file|grep 'text'|cut -d: -f1|xargs perl -p -i -e 's/\r//'
 
 %build
 
-%{_sbindir}/apxs -c mod_replace.c
+%{_bindir}/apxs -c mod_replace.c
 
 %install
-[ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
 
 install -d %{buildroot}%{_libdir}/apache-extramodules
 install -d %{buildroot}%{_sysconfdir}/httpd/modules.d
@@ -82,13 +80,81 @@ if [ "$1" = "0" ]; then
 fi
 
 %clean
-[ "%{buildroot}" != "/" ] && rm -rf %{buildroot}
 
 %files
-%defattr(-,root,root)
 %doc INSTALL LICENSE README docs.html faq.html
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/httpd/modules.d/%{mod_conf}
 %attr(0755,root,root) %{_libdir}/apache-extramodules/%{mod_so}
 /var/www/html/addon-modules/*
 
+
+
+
+%changelog
+* Sat Feb 11 2012 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-14mdv2012.0
++ Revision: 772752
+- rebuild
+
+* Tue May 24 2011 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-13
++ Revision: 678406
+- mass rebuild
+
+* Sun Oct 24 2010 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-12mdv2011.0
++ Revision: 588052
+- rebuild
+
+* Mon Mar 08 2010 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-11mdv2010.1
++ Revision: 516168
+- rebuilt for apache-2.2.15
+
+* Sat Aug 01 2009 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-10mdv2010.0
++ Revision: 406639
+- rebuild
+
+* Tue Jan 06 2009 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-9mdv2009.1
++ Revision: 326226
+- rebuild
+
+* Mon Jul 14 2008 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-8mdv2009.0
++ Revision: 235074
+- rebuild
+
+* Thu Jun 05 2008 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-7mdv2009.0
++ Revision: 215625
+- fix rebuild
+
+* Fri Mar 07 2008 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-6mdv2008.1
++ Revision: 181850
+- rebuild
+
+  + Olivier Blin <blino@mandriva.org>
+    - restore BuildRoot
+
+  + Thierry Vignaud <tv@mandriva.org>
+    - kill re-definition of %%buildroot on Pixel's request
+
+* Fri Dec 14 2007 Thierry Vignaud <tv@mandriva.org> 0.1.0-5mdv2008.1
++ Revision: 119822
+- rebuild b/c of missing package on ia32
+
+* Sat Sep 08 2007 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-4mdv2008.0
++ Revision: 82664
+- rebuild
+
+
+* Sat Mar 10 2007 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-3mdv2007.1
++ Revision: 140733
+- rebuild
+
+* Thu Nov 09 2006 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-2mdv2007.1
++ Revision: 79491
+- Import apache-mod_replace
+
+* Mon Aug 07 2006 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-2mdv2007.0
+- rebuild
+
+* Wed Dec 21 2005 Oden Eriksson <oeriksson@mandriva.com> 0.1.0-1mdk
+- initial Mandriva package
+- added P0,P1 to make it compile
+- added the docs (S2,S3)
 
