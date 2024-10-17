@@ -9,7 +9,7 @@ Version:	0.1.0
 Release:	15
 Group:		System/Servers
 License:	BSD
-URL:		http://mod-replace.sourceforge.net/
+URL:		https://mod-replace.sourceforge.net/
 Source0:	http://prdownloads.sourceforge.net/mod-replace/%{mod_name}-%{version}.tar.bz2
 Source1:	%{mod_conf}.bz2
 Source2:	docs.html.bz2
